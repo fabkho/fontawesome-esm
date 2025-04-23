@@ -2,12 +2,6 @@
 
 This project builds individual ES module chunks for FontAwesome Pro Regular SVG icons. This allows for optimized loading of icons by only fetching the specific icons needed, rather than a large bundle.
 
-## Prerequisites
-
-*   Node.js (check `.nvmrc` if available, otherwise specify version)
-*   Yarn package manager
-*   A FontAwesome Pro NPM authentication token.
-
 ## Setup
 
 1.  **Clone the repository:**
@@ -48,7 +42,3 @@ This command executes the [`scripts/build-fa-icon-chunks.mjs`](/Users/fabiankirc
 4.  Outputs the processed chunks into the `dist` directory.
 
 The resulting files in the `dist` directory are ready to be deployed to a CDN or served directly.
-
-## License
-
-This project is licensed under the MIT License. See the [`package.json`](/Users/fabiankirchhoff/code/fontawesome-chunks/package.json) file for details.
