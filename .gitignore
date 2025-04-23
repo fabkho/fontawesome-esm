@@ -1,0 +1,26 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+
+# Environment files (if you use .env for local testing)
+.env*
+!.env.example
+
+# Logs
+yarn-debug.log*
+yarn-error.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Editor directories and files
+.vscode/
+
+# FontAwesome Auth Token File - IMPORTANT!
+# Ignore .npmrc to prevent accidentally committing your auth token,
+# especially if you ever put it directly in the file for local testing.
+# Rely on environment variables in CI for the token.
+.npmrc 

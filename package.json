@@ -1,0 +1,20 @@
+{
+  "name": "fontawesome-chunks",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "git@gitlab.com:anny.co/frontend/packages/fontawesome-chunks.git",
+  "author": "Fabian Kirchhoff <fabian.kirchhoff@anny.co>",
+  "license": "MIT",
+  "scripts": {
+    "build": "node ./scripts/build-fa-icon-chunks.mjs"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.3",
+    "@rollup/plugin-node-resolve": "^16.0.1",
+    "glob": "^11.0.1",
+    "rollup": "^4.40.0"
+  },
+  "dependencies": {
+    "@fortawesome/pro-regular-svg-icons": "^6.7.2"
+  }
+}
