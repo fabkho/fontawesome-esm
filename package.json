@@ -1,20 +1,18 @@
 {
-  "name": "fontawesome-chunks",
+  "name": "fontawesome-esm",
   "version": "1.0.0",
-  "main": "index.js",
-  "repository": "git@gitlab.com:anny.co/frontend/packages/fontawesome-chunks.git",
-  "author": "Fabian Kirchhoff <fabian.kirchhoff@anny.co>",
-  "license": "MIT",
+  "description": "Convert FontAwesome icon files from CommonJS to ES Modules for browser dynamic imports",
+  "type": "module",
   "scripts": {
     "build": "node ./scripts/build-fa-icon-chunks.mjs"
   },
+  "author": "Fabian Kirchhoff <fabian.kirchhoff@anny.co>",
+  "license": "MIT",
   "devDependencies": {
     "@rollup/plugin-commonjs": "^28.0.3",
     "@rollup/plugin-node-resolve": "^16.0.1",
+    "@rollup/plugin-terser": "^0.4.4",
     "glob": "^11.0.1",
     "rollup": "^4.40.0"
-  },
-  "dependencies": {
-    "@fortawesome/pro-regular-svg-icons": "^6.7.2"
   }
 }

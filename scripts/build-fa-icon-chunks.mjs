@@ -3,83 +3,94 @@ import fs from 'node:fs/promises'
 import { rollup } from 'rollup'
 import { nodeResolve } from '@rollup/plugin-node-resolve'
 import commonjs from '@rollup/plugin-commonjs'
-import { sync as globSync } from 'glob'
+import terser from '@rollup/plugin-terser'
+import { glob } from 'glob'
 
 /**
- * @description Directory containing the source FontAwesome icon files.
- *              Targets only pro-regular-svg-icons as requested.
+ * FontAwesome ESM Builder
+ *
+ * Converts FontAwesome CommonJS icon files to ES Modules for browser dynamic imports.
+ *
+ * Environment Variables:
+ *   FA_ESM_STYLES      - Comma-separated styles (default: pro-regular-svg-icons)
+ *   FA_ESM_OUTPUT      - Output directory (default: ./dist)
+ *   FA_ESM_CONCURRENCY - Parallel builds (default: 20)
+ *   FA_ESM_MINIFY      - Minify output (default: true)
  */
-const inputDir = path.resolve(
-  process.cwd(),
-  'node_modules/@fortawesome/pro-regular-svg-icons',
-)
 
-/**
- * @description Output directory for the pre-built icon chunks.
- *              This 'dist' folder will contain the files to upload to the CDN.
- */
-const outputDir = path.resolve(process.cwd(), 'dist')
+const STYLES = (process.env.FA_ESM_STYLES || 'pro-regular-svg-icons').split(',').map(s => s.trim())
+const OUTPUT_DIR = path.resolve(process.cwd(), process.env.FA_ESM_OUTPUT || './dist')
+const CONCURRENCY = parseInt(process.env.FA_ESM_CONCURRENCY || '20', 10)
+const MINIFY = process.env.FA_ESM_MINIFY !== 'false'
 
-/**
- * @async
- * @function buildIconChunks
- * @description Finds all FontAwesome icon source files from pro-regular-svg-icons,
- *              processes each one using Rollup into a separate, standard ES module chunk,
- *              and outputs them to the `dist` directory.
- */
-async function buildIconChunks() {
-  try {
-    console.log(`[IconBuilder] Clearing existing output directory: ${outputDir}`)
-    await fs.rm(outputDir, { recursive: true, force: true })
-    await fs.mkdir(outputDir, { recursive: true })
-
-    console.log(`[IconBuilder] Finding icon files in: ${inputDir}`)
-    const iconFiles = globSync('fa*.js', { cwd: inputDir, absolute: true })
-
-    if (!iconFiles.length) {
-      console.error(`[IconBuilder] No FontAwesome icon files found in ${inputDir}. Did you run 'yarn install'?`)
-      return
-    }
-
-    console.log(`[IconBuilder] Found ${iconFiles.length} icons. Starting Rollup build...`)
-
-    // Process each icon file in parallel
-    const buildPromises = iconFiles.map(async (inputFile) => {
-      const baseName = path.basename(inputFile) // e.g., 'faSquare.js'
-      let bundle
-      try {
-        bundle = await rollup({
-          input: inputFile,
-          plugins: [
-            nodeResolve(), // Resolves node_modules imports (if any within the icon file)
-            commonjs(), // Converts CommonJS modules (if any within the icon file)
-          ],
-        })
-
-        // Write the processed icon file as an ES module chunk
-        await bundle.write({
-          file: path.join(outputDir, baseName), // Output to dist/faSquare.js etc.
-          format: 'es',
-          sourcemap: false,
-        })
-      } catch (error) {
-        console.error(`[IconBuilder] Error processing file ${baseName}:`, error)
-      } finally {
-        if (bundle) {
-          await bundle.close()
-        }
-      }
-    })
-
-    // Wait for all icon processing jobs to complete
-    await Promise.all(buildPromises)
-    console.log(`[IconBuilder] Successfully built ${iconFiles.length} icon chunks to ${outputDir}`)
+async function asyncPool(limit, items, fn) {
+  const executing = new Set()
+  for (const item of items) {
+    const promise = fn(item).then(() => executing.delete(promise))
+    executing.add(promise)
+    if (executing.size >= limit) await Promise.race(executing)
   }
-  catch (error) {
-    console.error('[IconBuilder] Error during build process:', error)
-    process.exit(1) 
-  }
+  await Promise.all(executing)
 }
 
-// Execute the build function when the script is run
-buildIconChunks()
+async function buildIcon(inputFile, outputFile) {
+  const plugins = [nodeResolve(), commonjs()]
+  if (MINIFY) plugins.push(terser())
+
+  const bundle = await rollup({ input: inputFile, plugins })
+  await bundle.write({ file: outputFile, format: 'es' })
+  await bundle.close()
+}
+
+async function processStyle(style) {
+  const inputDir = path.resolve(process.cwd(), `node_modules/@fortawesome/${style}`)
+  const shortName = style.match(/(?:pro|free)-(\w+)-svg-icons/)?.[1] || style
+  const outputDir = path.join(OUTPUT_DIR, shortName)
+
+  try {
+    await fs.access(inputDir)
+  } catch {
+    console.error(`[!] Package not found: @fortawesome/${style}`)
+    return []
+  }
+
+  await fs.mkdir(outputDir, { recursive: true })
+  const files = await glob('fa*.js', { cwd: inputDir, absolute: true })
+
+  console.log(`[${shortName}] ${files.length} icons`)
+
+  let done = 0
+  const icons = []
+
+  await asyncPool(CONCURRENCY, files, async (inputFile) => {
+    const name = path.basename(inputFile)
+    await buildIcon(inputFile, path.join(outputDir, name))
+    icons.push(name.replace(/^fa/, '').replace(/\.js$/, ''))
+    done++
+    process.stdout.write(`\r[${shortName}] ${done}/${files.length}`)
+  })
+
+  console.log('')
+  return icons
+}
+
+async function main() {
+  console.log(`Styles: ${STYLES.join(', ')}`)
+  console.log(`Output: ${OUTPUT_DIR}`)
+
+  await fs.rm(OUTPUT_DIR, { recursive: true, force: true })
+  await fs.mkdir(OUTPUT_DIR, { recursive: true })
+
+  const manifest = { generatedAt: new Date().toISOString(), styles: {} }
+
+  for (const style of STYLES) {
+    const shortName = style.match(/(?:pro|free)-(\w+)-svg-icons/)?.[1] || style
+    const icons = await processStyle(style)
+    if (icons.length) manifest.styles[shortName] = icons.sort()
+  }
+
+  await fs.writeFile(path.join(OUTPUT_DIR, 'manifest.json'), JSON.stringify(manifest, null, 2))
+  console.log(`Done. ${Object.values(manifest.styles).flat().length} icons total.`)
+}
+
+main().catch(err => { console.error(err); process.exit(1) })
