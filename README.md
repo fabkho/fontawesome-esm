@@ -1,44 +1,80 @@
-# FontAwesome Icon Chunks
+# fontawesome-esm
 
-This project builds individual ES module chunks for FontAwesome Pro Regular SVG icons. This allows for optimized loading of icons by only fetching the specific icons needed, rather than a large bundle.
+Convert FontAwesome's CommonJS icon files to ES Modules so you can lazy-load them from a CDN.
 
-## Setup
+## The Problem
 
-1.  **Clone the repository:**
-    ```bash
-    git clone git@gitlab.com:anny.co/frontend/packages/fontawesome-chunks.git
-    cd fontawesome-chunks
-    ```
+FontAwesome's npm packages (`@fortawesome/pro-*-svg-icons`) ship icons as CommonJS. Browsers can only dynamically import ES Modules. This tool converts them.
 
-2.  **Install dependencies:**
-    ```bash
-    yarn install
-    ```
+## What's Included
 
-3.  **Configure FontAwesome Token:**
-    *   Copy the example environment file:
-        ```bash
-        cp .env.example .env
-        ```
-    *   Edit the `.env` file and add your FontAwesome Pro NPM token:
-        ```
-        // filepath: .env
-        FONTAWESOME_NPM_AUTH_TOKEN=YOUR_FONTAWESOME_TOKEN_HERE
-        ```
-    *   The `.npmrc` file is configured to use this environment variable during `yarn install`.
+1. **Build script** — Converts CommonJS icons to ESM using Rollup
+2. **FaLazy.vue** — Zero-dependency Vue component for lazy-loading icons
 
-## Usage
-
-To build the icon chunks:
+## Quick Start
 
 ```bash
-yarn build
+# Configure FontAwesome registry
+echo '@fortawesome:registry=https://npm.fontawesome.com/
+//npm.fontawesome.com/:_authToken=${FONTAWESOME_NPM_AUTH_TOKEN}' > .npmrc
+
+# Install
+pnpm install
+pnpm add @fortawesome/pro-regular-svg-icons  # or any style you need
+
+# Build
+pnpm build
 ```
 
-This command executes the [`scripts/build-fa-icon-chunks.mjs`](/Users/fabiankirchhoff/code/fontawesome-chunks/scripts/build-fa-icon-chunks.mjs) script. The script performs the following steps:
-1.  Clears the `dist` directory.
-2.  Finds all `fa*.js` icon files within `node_modules/@fortawesome/pro-regular-svg-icons`.
-3.  Uses Rollup to process each icon file into a separate ES module.
-4.  Outputs the processed chunks into the `dist` directory.
+Output goes to `dist/`. Upload to your CDN.
 
-The resulting files in the `dist` directory are ready to be deployed to a CDN or served directly.
+## Build Options
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `FA_ESM_STYLES` | `pro-regular-svg-icons` | Comma-separated icon styles |
+| `FA_ESM_OUTPUT` | `./dist` | Output directory |
+
+```bash
+# Build multiple styles
+FA_ESM_STYLES=pro-regular-svg-icons,pro-solid-svg-icons pnpm build
+```
+
+## FaLazy Component
+
+Copy [`playground/app/components/FaLazy.vue`](./playground/app/components/FaLazy.vue) into your project:
+
+```vue
+<FaLazy icon="user" />
+<FaLazy icon="chevron-right" />
+```
+
+Edit `FA_ICON_CDN_URL` in the component to point to your CDN.
+
+The component handles loading and error states with inline SVG fallbacks — no additional dependencies required.
+
+## Playground
+
+```bash
+# Build icons first
+FA_ESM_STYLES=free-solid-svg-icons pnpm build
+
+# Run playground
+cd playground
+pnpm install
+pnpm dev
+```
+
+## Why Not Just Use `@vite-ignore`?
+
+You might think you can skip bundling with:
+
+```ts
+const icon = await import(/* @vite-ignore */ `./node_modules/@fortawesome/.../fa${name}.js`)
+```
+
+This doesn't work because the source files are CommonJS. Browsers can't import CommonJS directly — they need ES Modules.
+
+## License
+
+MIT — FontAwesome Pro icons require a valid FontAwesome license.

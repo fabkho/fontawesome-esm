@@ -1,85 +1,54 @@
 import path from 'node:path'
 import fs from 'node:fs/promises'
 import { rollup } from 'rollup'
-import { nodeResolve } from '@rollup/plugin-node-resolve'
 import commonjs from '@rollup/plugin-commonjs'
-import { sync as globSync } from 'glob'
+import { glob } from 'glob'
 
-/**
- * @description Directory containing the source FontAwesome icon files.
- *              Targets only pro-regular-svg-icons as requested.
- */
-const inputDir = path.resolve(
-  process.cwd(),
-  'node_modules/@fortawesome/pro-regular-svg-icons',
-)
+const STYLES = (process.env.FA_ESM_STYLES || 'pro-regular-svg-icons').split(',').map(s => s.trim())
+const OUTPUT_DIR = path.resolve(process.cwd(), process.env.FA_ESM_OUTPUT || './dist')
 
-/**
- * @description Output directory for the pre-built icon chunks.
- *              This 'dist' folder will contain the files to upload to the CDN.
- */
-const outputDir = path.resolve(process.cwd(), 'dist')
-
-/**
- * @async
- * @function buildIconChunks
- * @description Finds all FontAwesome icon source files from pro-regular-svg-icons,
- *              processes each one using Rollup into a separate, standard ES module chunk,
- *              and outputs them to the `dist` directory.
- */
-async function buildIconChunks() {
-  try {
-    console.log(`[IconBuilder] Clearing existing output directory: ${outputDir}`)
-    await fs.rm(outputDir, { recursive: true, force: true })
-    await fs.mkdir(outputDir, { recursive: true })
-
-    console.log(`[IconBuilder] Finding icon files in: ${inputDir}`)
-    const iconFiles = globSync('fa*.js', { cwd: inputDir, absolute: true })
-
-    if (!iconFiles.length) {
-      console.error(`[IconBuilder] No FontAwesome icon files found in ${inputDir}. Did you run 'yarn install'?`)
-      return
-    }
-
-    console.log(`[IconBuilder] Found ${iconFiles.length} icons. Starting Rollup build...`)
-
-    // Process each icon file in parallel
-    const buildPromises = iconFiles.map(async (inputFile) => {
-      const baseName = path.basename(inputFile) // e.g., 'faSquare.js'
-      let bundle
-      try {
-        bundle = await rollup({
-          input: inputFile,
-          plugins: [
-            nodeResolve(), // Resolves node_modules imports (if any within the icon file)
-            commonjs(), // Converts CommonJS modules (if any within the icon file)
-          ],
-        })
-
-        // Write the processed icon file as an ES module chunk
-        await bundle.write({
-          file: path.join(outputDir, baseName), // Output to dist/faSquare.js etc.
-          format: 'es',
-          sourcemap: false,
-        })
-      } catch (error) {
-        console.error(`[IconBuilder] Error processing file ${baseName}:`, error)
-      } finally {
-        if (bundle) {
-          await bundle.close()
-        }
-      }
-    })
-
-    // Wait for all icon processing jobs to complete
-    await Promise.all(buildPromises)
-    console.log(`[IconBuilder] Successfully built ${iconFiles.length} icon chunks to ${outputDir}`)
-  }
-  catch (error) {
-    console.error('[IconBuilder] Error during build process:', error)
-    process.exit(1) 
-  }
+async function buildIcon(inputFile, outputFile) {
+  const bundle = await rollup({ input: inputFile, plugins: [commonjs()] })
+  await bundle.write({ file: outputFile, format: 'es' })
+  await bundle.close()
 }
 
-// Execute the build function when the script is run
-buildIconChunks()
+async function processStyle(style) {
+  const inputDir = path.resolve(process.cwd(), `node_modules/@fortawesome/${style}`)
+  const shortName = style.match(/(?:pro|free)-(\w+)-svg-icons/)?.[1] || style
+  const outputDir = path.join(OUTPUT_DIR, shortName)
+
+  try {
+    await fs.access(inputDir)
+  } catch {
+    console.error(`Package not found: @fortawesome/${style}`)
+    return 0
+  }
+
+  await fs.mkdir(outputDir, { recursive: true })
+  const files = await glob('fa*.js', { cwd: inputDir, absolute: true })
+
+  // Process in batches of 20
+  for (let i = 0; i < files.length; i += 20) {
+    const batch = files.slice(i, i + 20)
+    await Promise.all(batch.map(f => buildIcon(f, path.join(outputDir, path.basename(f)))))
+    process.stdout.write(`\r[${shortName}] ${Math.min(i + 20, files.length)}/${files.length}`)
+  }
+
+  console.log('')
+  return files.length
+}
+
+async function main() {
+  await fs.rm(OUTPUT_DIR, { recursive: true, force: true })
+  await fs.mkdir(OUTPUT_DIR, { recursive: true })
+
+  let total = 0
+  for (const style of STYLES) {
+    total += await processStyle(style)
+  }
+
+  console.log(`Done. ${total} icons built.`)
+}
+
+main().catch(err => { console.error(err); process.exit(1) })

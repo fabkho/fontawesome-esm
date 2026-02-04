@@ -1,0 +1,17 @@
+{
+  "name": "fontawesome-esm-playground",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@nuxt/ui": "^4.4.0",
+    "nuxt": "^4.3.0",
+    "tailwindcss": "^4.1.18"
+  }
+}
