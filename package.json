@@ -3,15 +3,16 @@
   "version": "1.0.0",
   "description": "Convert FontAwesome icon files from CommonJS to ES Modules for browser dynamic imports",
   "type": "module",
+  "packageManager": "pnpm@9.0.0",
   "scripts": {
-    "build": "node ./scripts/build-fa-icon-chunks.mjs"
+    "build": "node ./scripts/build-fa-icon-chunks.mjs",
+    "playground": "pnpm build && cd playground && pnpm dev"
   },
   "author": "Fabian Kirchhoff",
   "license": "MIT",
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^28.0.3",
-    "@rollup/plugin-terser": "^0.4.4",
-    "glob": "^11.0.1",
-    "rollup": "^4.40.0"
+    "@rollup/plugin-commonjs": "^28.0.9",
+    "glob": "^11.1.0",
+    "rollup": "^4.57.1"
   }
 }
