@@ -6,11 +6,10 @@
   "scripts": {
     "build": "node ./scripts/build-fa-icon-chunks.mjs"
   },
-  "author": "Fabian Kirchhoff <fabian.kirchhoff@anny.co>",
+  "author": "Fabian Kirchhoff",
   "license": "MIT",
   "devDependencies": {
     "@rollup/plugin-commonjs": "^28.0.3",
-    "@rollup/plugin-node-resolve": "^16.0.1",
     "@rollup/plugin-terser": "^0.4.4",
     "glob": "^11.0.1",
     "rollup": "^4.40.0"
